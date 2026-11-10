@@ -1,5 +1,6 @@
 from datetime import datetime
 import json
+import heapq
 
 DESTINATIONS = ["Delhi", "Jaipur"]
 TIME_SLOTS = ["Morning", "Afternoon", "Evening", "Night"]
@@ -89,24 +90,40 @@ def ask_year():
         print(f"  '{ans}' is not a valid year. Enter a number from 1 to 5.")
 
 
-def add(waiting, n):
+def add(waiting, cab, n):
     name = ask_name()
     destination = ask_place(DESTINATIONS)
     time = ask_time(TIME_SLOTS)
     year = ask_year()
 
     r = RideRequest(name, destination, time, year, n)
-    waiting.append(r)
+    heapq.heappush(waiting[(destination, time)], (-year, n, r))
     print(f"Added {r}")
+
+    if find_cab(cab, destination, time) is None:
+        print(
+            " Note: no open cab for this trip right now, Youll stay in the waiting list."
+        )
 
 
 def show(waiting, cab):
-    if len(waiting) == 0:
+    print("\n--- Waiting(senior first) ---")
+    nobody = True
+    for key in waiting:
+        heap = waiting[key]
+        if len(heap) == 0:
+            continue
+        nobody = False
+        d, s = key
+        print(f"\n{d}, {s}:")
+        if find_cab(cab, d, s) is None:
+            print("(no cab for this trip, waiting)")
+        for e in sorted(heap):
+            print(f"   {e[2]}")
+    if nobody:
         print("Nobody is waiting")
-    else:
-        for r in waiting:
-            print(f" {r}")
 
+    print("\n--- Cabs ---")
     if len(cab) == 0:
         print("No cabs loaded")
     else:
@@ -157,26 +174,85 @@ def find_cab(cabs, dest, slot):
     return None
 
 
+def find_match(waiting, cab):
+    print("\n--- Matches(preview) ---")
+    taken = {}
+    found = False
+
+    for c in cab:
+        if c.has_left:
+            continue
+        found = True
+        k = (c.destination, c.time_slot)
+        done = taken.get(k, 0)
+
+        top = heapq.nsmallest(done + c.free_seats(), waiting[k])
+        picks = [e[2] for e in top[done:]]
+        taken[k] = done + len(picks)
+
+        print(f"\n{c}")
+        if len(picks) == 0:
+            print(" nobody waiting for this trip")
+        for p in picks:
+            print(f" -> {p}")
+
+    if not found:
+        print("No open cabs there")
+
+
+def dispatch(waiting, cab):
+    print("--- Dispatch cab---")
+    destination = ask_place(DESTINATIONS)
+    time = ask_time(TIME_SLOTS)
+    c = find_cab(cab, destination, time)
+    if c is None:
+        print(f"no cab for {destination}, {time}")
+        return
+
+    h = waiting[(destination, time)]
+    if len(h) == 0:
+        print(f"Nobody is waiting for {destination}, {time}")
+        return
+
+    while cab.free_seats() > 0 and len(h) > 0:
+        b = heapq.heappop(h)
+        cab.passengers.append(b[2])
+    cab.has_left = True
+
+    print(f"cab left! {cab}")
+    for s in cab.passengers:
+        print(f"  - {s.name} (Year {s.year})")
+
+
 def main():
     print("BITS Cab Pool Matcher")
-    waiting = []
+    waiting = {}
+    for d in DESTINATIONS:
+        for s in TIME_SLOTS:
+            waiting[(d, s)] = []
     cab = load_cabs("cabs.json")
     n = 1
     while True:
         print("1. Add a ride request")
         print("2. Show waiting students and cabs")
-        print("3. Quit")
+        print("3. Find matches")
+        print("4. Dispatch a cab")
+        print("5. Quit")
         choice = input("Choose an option: ").strip()
 
         if choice == "1":
-            add(waiting, n)
+            add(waiting, cab, n)
             n += 1
         elif choice == "2":
             show(waiting, cab)
         elif choice == "3":
+            find_match(waiting, cab)
+        elif choice == "4":
+            dispatch(waiting, cab)
+        elif choice == "5":
             break
         else:
-            print("Enter 1, 2 or 3")
+            print("Enter from 1 to 5")
 
 
 if __name__ == "__main__":
