@@ -1,4 +1,5 @@
 from datetime import datetime
+import json
 
 DESTINATIONS = ["Delhi", "Jaipur"]
 TIME_SLOTS = ["Morning", "Afternoon", "Evening", "Night"]
@@ -106,11 +107,60 @@ def show(waiting, cab):
         for r in waiting:
             print(f" {r}")
 
+    if len(cab) == 0:
+        print("No cabs loaded")
+    else:
+        for c in cab:
+            print(f" {c}")
+
+
+def load_cabs(filename):
+    try:
+        with open(filename) as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        print(f"Could not find '{filename}'. Please add a cab file.")
+        return []
+    except json.JSONDecodeError:
+        print(f"'{filename}' is not valid JSON. Please fix it.")
+        return []
+
+    cabs = []
+    for c in data:
+        try:
+            driver = c["driver"]
+            seats = int(c["seats"])
+            destination = c["destination"]
+            time_slot = c["time_slot"]
+        except (KeyError, ValueError, TypeError):
+            print(f"Skipping a broken cab entry: {c}")
+            continue
+
+        if (
+            destination not in DESTINATIONS
+            or time_slot not in TIME_SLOTS
+            or not 1 <= seats <= 4
+        ):
+            print(f"Skipping cab with bad values: {c}")
+            continue
+
+        cabs.append(Cab(driver, seats, destination, time_slot))
+
+    print(f"Loaded {len(cabs)} cabs from {filename}")
+    return cabs
+
+
+def find_cab(cabs, dest, slot):
+    for c in cabs:
+        if not c.has_left and c.destination == dest and c.time_slot == slot:
+            return c
+    return None
+
 
 def main():
     print("BITS Cab Pool Matcher")
     waiting = []
-    cab = []
+    cab = load_cabs("cabs.json")
     n = 1
     while True:
         print("1. Add a ride request")

@@ -1,2 +1,4 @@
 task-1.pdf
 
+__pycache__/
+state.json
