@@ -13,8 +13,8 @@ class RideRequest:
         self.name = name
         self.destination = destination
         self.time_slot = time_slot
-        self.year = year
         self.request_n = request_n
+        self.year = year
         if submitted_at is None:
             submitted_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -214,13 +214,13 @@ def dispatch(waiting, cab):
         print(f"Nobody is waiting for {destination}, {time}")
         return
 
-    while cab.free_seats() > 0 and len(h) > 0:
+    while c.free_seats() > 0 and len(h) > 0:
         b = heapq.heappop(h)
         cab.passengers.append(b[2])
     cab.has_left = True
 
-    print(f"cab left! {cab}")
-    for s in cab.passengers:
+    print(f"cab left! {c}")
+    for s in c.passengers:
         print(f"  - {s.name} (Year {s.year})")
 
 
